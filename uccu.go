@@ -1,15 +1,17 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/containous/traefik/log"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
 	"time"
-	"io/ioutil"
 )
 
 const regular = `^(13[0-9]|14[579]|15[0-3,5-9]|16[6]|17[0135678]|18[0-9]|19[89])\d{8}$`
@@ -51,28 +53,42 @@ func FromCmd(CmdArgs WatchOnit) WatchOnit {
 	return CmdArgs
 }
 
-func MsgOrNot(CmdArgs WatchOnit) {
-	var n string
-	for n = range CmdArgs.Contacts {
-		if n != "" {
-			//api明天问问是什么
-			url := fmt.Sprintf("http://MSG_API/%s/content", n)
+func MsgOrNot(CmdArgs WatchOnit) string {
+	if len(CmdArgs.Contacts) != 0 {
+		MSG := make(map[string]interface{})
+		MSG["mobiles"] = CmdArgs.Contacts
+		MSG["content"] = fmt.Sprintf("%s又挂啦,修不了啦", CmdArgs.Proc)
 
-			req, err := http.NewRequest("POST", url, nil)
-
+		bytesData, _ := json.Marshal(MSG)
+		/*
 			if err != nil {
+				fmt.Println(err.Error())
+				log.Error(err)
+				return string("")
+			}
+		*/
+		reader := bytes.NewReader(bytesData)
+		url := fmt.Sprintf("http://10.161.35.65:1821/octopus/rest/api/message/send/%s", CmdArgs.Proc)
+		req, _ := http.NewRequest("POST", url, reader)
+		/*
+			if err != nil {
+				fmt.Println(err.Error())
 				log.Error(err)
 				return
 			}
-			//不明白这个地方到底该怎么改... 明天记得问
-			response, _ := http.Client.Do(req)
-			body,_ := ioutil.ReadAll(response.Body)
-
-			//假设返回的body为"发送成功"或"发送失败"
-			fmt.Printf("号码%s短信%s",n,body)
+		*/
+		req.Header.Set("Content-Type", "application/json;charset=UTF-8")
+		client := http.Client{}
+		response, _ := client.Do(req)
+		body, _ := ioutil.ReadAll(response.Body)
+		var respmsg map[string]interface{}
+		err := json.Unmarshal(body, &respmsg)
+		if err != nil {
+			fmt.Println(err.Error())
 		}
+		return respmsg["msg"].(string)
 	}
-	//不知道是不是需要一个返回值,明天问
+	return string("没写联系人，我也不知道联系谁")
 }
 
 func main() {
@@ -91,12 +107,12 @@ func main() {
 		log.Info(p)
 
 		if err != nil {
-			log.Error(err)
+			defer log.Error(err)
 			return
 		}
 		r, err := p.Wait()
 		if err != nil {
-			log.Error(err)
+			defer log.Error(err)
 			return
 		}
 		log.Info(r)
