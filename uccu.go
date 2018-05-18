@@ -24,7 +24,6 @@ type WatchOnit struct {
 	APIADDR   string
 }
 
-var u WatchOnit
 
 func validate(mobileNum string) bool {
 	reg := regexp.MustCompile(regular)
@@ -119,10 +118,11 @@ func uccu(cmd WatchOnit) {
 		log.Info(r)
 		//  重启后发告警短信
 
-		time.Sleep(time.Duration(u.HeartBeat) * time.Second)
+		time.Sleep(time.Duration(cmd.HeartBeat) * time.Second)
 	}
 }
 func main() {
+	var u WatchOnit
 	defer MsgOrNot(u)
 	uccu(u)
 }
