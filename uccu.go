@@ -21,6 +21,7 @@ type WatchOnit struct {
 	Args      []string
 	Contacts  []string
 	HeartBeat int64
+	APIADDR  string
 }
 
 var u WatchOnit
@@ -37,6 +38,7 @@ func FromCmd(CmdArgs WatchOnit) WatchOnit {
 	flag.StringVar(&CmdArgs.Proc, "cmd", "", "需要监控的程序")
 	flag.StringVar(&arg, "args", "", "程序启动的参数")
 	flag.StringVar(&contact, "tel", "", "告警联系人电话,多个时用逗号分开")
+	flag.StringVar(&CmdArgs.APIADDR, "api", "", "短信api地址")
 	flag.Int64Var(&CmdArgs.HeartBeat, "hb", 60, "心跳频率,单位:秒")
 
 	CmdArgs.Args[0] = arg
@@ -68,7 +70,7 @@ func MsgOrNot(CmdArgs WatchOnit) string {
 			}
 		*/
 		reader := bytes.NewReader(bytesData)
-		url := fmt.Sprintf("http://10.161.35.65:1821/octopus/rest/api/message/send/%s", CmdArgs.Proc)
+		url := fmt.Sprintf("%s%s", CmdArgs.APIADDR,CmdArgs.Proc)
 		req, _ := http.NewRequest("POST", url, reader)
 		/*
 			if err != nil {
@@ -100,24 +102,24 @@ func main() {
 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
 	}
 
+	defer MsgOrNot(u)
 	//一旦监控的程序或者参数提交错误 是不是会引起这个程序无限重启导致死循环.... 不太明白这里为啥不用signal控制重启...
-	for true {
+	for {
 		p, err := os.StartProcess(u.Proc, u.Args, Attr)
 
 		log.Info(p)
 
 		if err != nil {
-			defer log.Error(err)
+			log.Error(err)
 			return
 		}
 		r, err := p.Wait()
 		if err != nil {
-			defer log.Error(err)
+			log.Error(err)
 			return
 		}
 		log.Info(r)
 		//  重启后发告警短信
-		MsgOrNot(u)
 
 		time.Sleep(time.Duration(u.HeartBeat) * time.Second)
 	}
