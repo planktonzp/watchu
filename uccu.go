@@ -40,19 +40,19 @@ func validate(mobileNum string) bool {
 }
 
 func FromCmd(CmdArgs WatchOnit) WatchOnit {
-	var contact, arg, num string
+	var proc, contact, arg, num string
 
 	//不确定是不是应该写一个-h或者用别的方式来设计.... 明天问
-	flag.StringVar(&CmdArgs.Proc, "cmd", "", "需要监控的程序")
+	flag.StringVar(&proc, "cmd", "", "需要监控的程序")
 	flag.StringVar(&arg, "args", "", "程序启动的参数")
 	flag.StringVar(&contact, "tel", "", "告警联系人电话,多个时用逗号分开")
 	flag.StringVar(&CmdArgs.APIADDR, "api", "", "短信api地址")
 	flag.Int64Var(&CmdArgs.HeartBeat, "hb", 60, "心跳频率,单位:秒")
 
-	CmdArgs.Args[0] = arg
-	numbers := strings.Split(contact, ",")
+	CmdArgs.Proc = proc
+	CmdArgs.Args = append(CmdArgs.Args, arg)
 
-	for num = range numbers {
+	for _, num = range strings.Split(contact, ",") {
 		if validate(num) {
 			CmdArgs.Contacts = append(CmdArgs.Contacts, num)
 		} else {
@@ -100,16 +100,16 @@ func MsgOrNot(CmdArgs WatchOnit) string {
 	return fmt.Sprint("没写联系人，我也不知道联系谁")
 }
 
-func uccu(cmd WatchOnit) {
+func uccu(c WatchOnit) {
 
-	FromCmd(cmd)
+	FromCmd(c)
 	flag.Parse()
 
 	Attr := &os.ProcAttr{
 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
 	}
 	//一旦监控的程序或者参数提交错误 是不是会引起这个程序无限重启导致死循环.... 不太明白这里为啥不用signal控制重启...
-	p, err := os.StartProcess(cmd.Proc, cmd.Args, Attr)
+	p, err := os.StartProcess(c.Proc, c.Args, Attr)
 
 	log.Info(p)
 
@@ -125,7 +125,7 @@ func uccu(cmd WatchOnit) {
 	log.Info(r)
 	//  重启后发告警短信
 
-	time.Sleep(time.Duration(cmd.HeartBeat) * time.Second)
+	time.Sleep(time.Duration(c.HeartBeat) * time.Second)
 }
 func main() {
 	var u WatchOnit
