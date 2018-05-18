@@ -24,6 +24,15 @@ type WatchOnit struct {
 	APIADDR   string
 }
 
+type POSTMSG struct {
+	Mobiles []string `json:"mobiles"`
+	Content string   `json:"content"`
+}
+
+type RESPMSG struct {
+	Status string `json:"status"`
+	Msg    string `json:"msg"`
+}
 
 func validate(mobileNum string) bool {
 	reg := regexp.MustCompile(regular)
@@ -56,11 +65,11 @@ func FromCmd(CmdArgs WatchOnit) WatchOnit {
 
 func MsgOrNot(CmdArgs WatchOnit) string {
 	if len(CmdArgs.Contacts) != 0 {
-		MSG := make(map[string]interface{})
-		MSG["mobiles"] = CmdArgs.Contacts
-		MSG["content"] = fmt.Sprintf("%s又挂啦,修不了啦", CmdArgs.Proc)
+		var postmsg POSTMSG
+		postmsg.Mobiles = CmdArgs.Contacts
+		postmsg.Content = fmt.Sprintf("%s又挂啦,修不了啦", CmdArgs.Proc)
 
-		bytesData, _ := json.Marshal(MSG)
+		bytesData, _ := json.Marshal(postmsg)
 		/*
 			if err != nil {
 				fmt.Println(err.Error())
@@ -70,26 +79,25 @@ func MsgOrNot(CmdArgs WatchOnit) string {
 		*/
 		reader := bytes.NewReader(bytesData)
 		url := fmt.Sprintf("%s%s", CmdArgs.APIADDR, CmdArgs.Proc)
-		req, _ := http.NewRequest("POST", url, reader)
-		/*
-			if err != nil {
-				fmt.Println(err.Error())
-				log.Error(err)
-				return
-			}
-		*/
+		req, err := http.NewRequest("POST", url, reader)
+		if err != nil {
+			fmt.Println(err.Error())
+			log.Error(err)
+			return fmt.Sprint("请求无响应,请检查您输入的地址")
+		}
 		req.Header.Set("Content-Type", "application/json;charset=UTF-8")
 		client := http.Client{}
 		response, _ := client.Do(req)
 		body, _ := ioutil.ReadAll(response.Body)
-		var respmsg map[string]interface{}
-		err := json.Unmarshal(body, &respmsg)
-		if err != nil {
-			fmt.Println(err.Error())
+		var respmsg RESPMSG
+		e := json.Unmarshal(body, &respmsg)
+		if e != nil {
+			fmt.Println(e.Error())
+			os.Exit(1)
 		}
-		return respmsg["msg"].(string)
+		return respmsg.Msg
 	}
-	return string("没写联系人，我也不知道联系谁")
+	return fmt.Sprint("没写联系人，我也不知道联系谁")
 }
 
 func uccu(cmd WatchOnit) {
