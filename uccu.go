@@ -101,28 +101,28 @@ func uccu(cmd WatchOnit) {
 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
 	}
 	//一旦监控的程序或者参数提交错误 是不是会引起这个程序无限重启导致死循环.... 不太明白这里为啥不用signal控制重启...
-	for {
-		p, err := os.StartProcess(cmd.Proc, cmd.Args, Attr)
+	p, err := os.StartProcess(cmd.Proc, cmd.Args, Attr)
 
-		log.Info(p)
+	log.Info(p)
 
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		r, err := p.Wait()
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		log.Info(r)
-		//  重启后发告警短信
-
-		time.Sleep(time.Duration(cmd.HeartBeat) * time.Second)
+	if err != nil {
+		log.Error(err)
+		return
 	}
+	r, err := p.Wait()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	log.Info(r)
+	//  重启后发告警短信
+
+	time.Sleep(time.Duration(cmd.HeartBeat) * time.Second)
 }
 func main() {
 	var u WatchOnit
-	defer MsgOrNot(u)
-	uccu(u)
+	for {
+		defer MsgOrNot(u)
+		uccu(u)
+	}
 }
