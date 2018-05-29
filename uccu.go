@@ -72,12 +72,12 @@ func GFromCmd() {
 			if !startsymbol {
 				startsymbol = validate(a , `^"`)
 			}
-			endsymbol = validate(a, `"$`)
 			//当元素以'开始时，进入临时数组并整合为一个字符串输入进u.Args
 			if startsymbol {
+				endsymbol = validate(a, `"$`)
 				tmpvar = append(tmpvar, a)
 				if endsymbol {
-					str := strings.Join(tmpvar," ")
+					str := strings.Replace(strings.Join(tmpvar," "),`"`,``,-1)
 					u.Args = append(u.Args,str)
 					startsymbol = false
 					endsymbol = false
