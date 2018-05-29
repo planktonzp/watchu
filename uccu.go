@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	flag "flag"
+	"flag"
 	"fmt"
 	"github.com/containous/traefik/log"
 	"io/ioutil"
@@ -24,24 +24,24 @@ type WatchOnit struct {
 	HeartBeat int64
 }
 
-type POSTMSG struct {
+type PostMsg struct {
 	Mobiles []string `json:"mobiles"`
 	Content string   `json:"content"`
 }
 
-type RESPMSG struct {
+type RespMsg struct {
 	Status string `json:"status"`
 	Msg    string `json:"msg"`
 }
 
 var u WatchOnit
 
-func validate(mobileNum string) bool {
-	reg := regexp.MustCompile(regular)
+func validate(mobileNum, rules string) bool {
+	reg := regexp.MustCompile(rules)
 	return reg.MatchString(mobileNum)
 }
 
-func FromCmd() {
+func GFromCmd() {
 	var (
 		cmd     string
 		arg     string
@@ -63,13 +63,35 @@ func FromCmd() {
 	fmt.Printf("u.Proc:%s", u.Proc)
 	u.Proc = cmd
 
+	var tmpvar []string = make([]string,0)
+	startsymbol := false
+	endsymbol := false
 	u.Args = append(u.Args, cmd)
 	for _, a := range strings.Split(arg, " ") {
-		u.Args = append(u.Args, a)
+		if a != " " {
+			if !startsymbol {
+				startsymbol = validate(a , `^"`)
+			}
+			endsymbol = validate(a, `"$`)
+			//当元素以'开始时，进入临时数组并整合为一个字符串输入进u.Args
+			if startsymbol {
+				tmpvar = append(tmpvar, a)
+				if endsymbol {
+					str := strings.Join(tmpvar," ")
+					u.Args = append(u.Args,str)
+					startsymbol = false
+					endsymbol = false
+					tmpvar = make([]string,0)
+				}
+			} else {
+				u.Args = append(u.Args,a)
+			}
+		}
 	}
 
 	for _, num = range strings.Split(contact, ",") {
-		tf := validate(num)
+		//检查电话号码是否合法
+		tf := validate(num, regular)
 		if tf {
 			u.Contacts = append(u.Contacts, num)
 		} else {
@@ -84,9 +106,9 @@ func FromCmd() {
 	return
 }
 
-func MsgOrNot(a string) string {
+func GMsgOrNot(a string) string {
 	if len(u.Contacts) != 0 {
-		var postmsg POSTMSG
+		var postmsg PostMsg
 		postmsg.Mobiles = u.Contacts
 		if a == u.Proc {
 			postmsg.Content = fmt.Sprintf("%s退出,请悉知", u.Proc)
@@ -112,7 +134,7 @@ func MsgOrNot(a string) string {
 		}
 
 		body, _ := ioutil.ReadAll(response.Body)
-		var respmsg RESPMSG
+		var respmsg RespMsg
 		e := json.Unmarshal(body, &respmsg)
 		if e != nil {
 			fmt.Println(e.Error())
@@ -125,19 +147,22 @@ func MsgOrNot(a string) string {
 	}
 }
 
-func uccu() {
+func GUccu() {
 
 	Attr := &os.ProcAttr{
 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
 	}
 	//一旦监控的程序或者参数提交错误 是不是会引起这个程序无限重启导致死循环.... 不太明白这里为啥不用signal控制重启...
+//	sliTmp := make([]string,2)
+//	sliTmp[0]= u.Args[0]
+//	sliTmp[1]= strings.Join(u.Args[1:]," ")
 	p, err := os.StartProcess(u.Proc, u.Args, Attr)
 
 	log.Info(p)
 
 	if err != nil {
 		log.Error(err)
-		MsgOrNot(u.Proc)
+		GMsgOrNot(u.Proc)
 	}
 	r, err := p.Wait()
 	if err != nil {
@@ -145,20 +170,22 @@ func uccu() {
 	}
 	//Wait退出，不管是人为原因还是异常状态都发短信通知
 	log.Info(r)
-	MsgOrNot(u.Proc)
+	GMsgOrNot(u.Proc)
 
 	time.Sleep(time.Duration(u.HeartBeat) * time.Second)
 }
 
 func main() {
+
 	//获取参数
-	FromCmd()
+	GFromCmd()
 	//测试短信接口是否正常
-	MsgOrNot("api测试短信")
+	GMsgOrNot("api测试短信")
 
 	//一旦主程序退出,发短信
-	defer MsgOrNot("uccu主进程退出")
+	defer GMsgOrNot("uccu主进程退出")
 	for {
-		uccu()
+		GUccu()
+		//异常退出
 	}
 }
