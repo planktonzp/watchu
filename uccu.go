@@ -1,17 +1,19 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"flag"
-	"fmt"
 	"github.com/containous/traefik/log"
-	"io/ioutil"
 	"net/http"
 	"os"
-	"regexp"
-	"strings"
 	"time"
+
+	"regexp"
+	"flag"
+	"fmt"
+	"strings"
+	"bytes"
+	"io/ioutil"
+	"encoding/json"
+
 )
 
 const regular = `^(1[0-9])\d{9}$`
@@ -152,10 +154,7 @@ func GUccu() {
 	Attr := &os.ProcAttr{
 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
 	}
-	//一旦监控的程序或者参数提交错误 是不是会引起这个程序无限重启导致死循环.... 不太明白这里为啥不用signal控制重启...
-//	sliTmp := make([]string,2)
-//	sliTmp[0]= u.Args[0]
-//	sliTmp[1]= strings.Join(u.Args[1:]," ")
+
 	p, err := os.StartProcess(u.Proc, u.Args, Attr)
 
 	log.Info(p)
@@ -189,3 +188,4 @@ func main() {
 		//异常退出
 	}
 }
+
