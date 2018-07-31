@@ -6,14 +6,15 @@ import (
 	"os"
 	"time"
 
-	"regexp"
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
-	"strings"
-	"bytes"
 	"io/ioutil"
-	"encoding/json"
+	"regexp"
+	"strings"
 
+	"os/signal"
 )
 
 const regular = `^(1[0-9])\d{9}$`
@@ -65,28 +66,28 @@ func GFromCmd() {
 	fmt.Printf("u.Proc:%s", u.Proc)
 	u.Proc = cmd
 
-	var tmpvar []string = make([]string,0)
+	var tmpvar []string = make([]string, 0)
 	startsymbol := false
 	endsymbol := false
 	u.Args = append(u.Args, cmd)
 	for _, a := range strings.Split(arg, " ") {
 		if a != " " {
 			if !startsymbol {
-				startsymbol = validate(a , `^"`)
+				startsymbol = validate(a, `^"`)
 			}
 			//当元素以'开始时，进入临时数组并整合为一个字符串输入进u.Args
 			if startsymbol {
 				endsymbol = validate(a, `"$`)
 				tmpvar = append(tmpvar, a)
 				if endsymbol {
-					str := strings.Replace(strings.Join(tmpvar," "),`"`,``,-1)
-					u.Args = append(u.Args,str)
+					str := strings.Replace(strings.Join(tmpvar, " "), `"`, ``, -1)
+					u.Args = append(u.Args, str)
 					startsymbol = false
 					endsymbol = false
-					tmpvar = make([]string,0)
+					tmpvar = make([]string, 0)
 				}
 			} else {
-				u.Args = append(u.Args,a)
+				u.Args = append(u.Args, a)
 			}
 		}
 	}
@@ -150,6 +151,9 @@ func GMsgOrNot(a string) string {
 }
 
 func GUccu() {
+	c := make(chan os.Signal)
+
+	go LogToFile(c)
 
 	Attr := &os.ProcAttr{
 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
@@ -174,7 +178,28 @@ func GUccu() {
 	time.Sleep(time.Duration(u.HeartBeat) * time.Second)
 }
 
+func LogToFile(c chan os.Signal) (log_content string) {
+	log_file, err := os.OpenFile("/tmp/output.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
+	if err != nil {
+		log.Error(err)
+	}
+	defer log_file.Close()
+	log_file.Write([]byte("I'm waitting for a bug\n"))
+	log_time := time.Now().Format("2018-07-30 18:22:41")
+	signal.Notify(c)
+	s := <-c
+	log_content = strings.Join([]string{"====", log_time, "====", s.String(), "\n"}, "")
+	buf := []byte(log_content)
+	log_file.Write(buf)
+	fmt.Println(log_content)
+	return log_content
+}
+
 func main() {
+
+	m_c := make(chan os.Signal)
+
+	go LogToFile(m_c)
 
 	//获取参数
 	GFromCmd()
@@ -188,4 +213,3 @@ func main() {
 		//异常退出
 	}
 }
-
