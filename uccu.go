@@ -185,7 +185,7 @@ func LogToFile(c chan os.Signal) (log_content string) {
 	}
 	defer log_file.Close()
 	log_file.Write([]byte("I'm waitting for a bug\n"))
-	log_time := time.Now().Format("2018-07-30 18:22:41")
+	log_time := time.Now().Format("2006-01-02 15:04:05")
 	signal.Notify(c)
 	s := <-c
 	log_content = strings.Join([]string{"====", log_time, "====", s.String(), "\n"}, "")
