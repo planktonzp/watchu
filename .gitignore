@@ -20,8 +20,8 @@ gen### Go template
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-将删除 .idea/
-将删除 watchu.go
 /uccu
 /demo
 /vendor/*
+/demo2
+/*.log

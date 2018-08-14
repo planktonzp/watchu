@@ -14,7 +14,7 @@ import (
 	"regexp"
 	"strings"
 
-	"os/signal"
+	"runtime/debug"
 )
 
 const regular = `^(1[0-9])\d{9}$`
@@ -44,7 +44,7 @@ func validate(mobileNum, rules string) bool {
 	return reg.MatchString(mobileNum)
 }
 
-func GFromCmd() {
+func FromCmd() {
 	var (
 		cmd     string
 		arg     string
@@ -92,24 +92,25 @@ func GFromCmd() {
 		}
 	}
 
-	for _, num = range strings.Split(contact, ",") {
-		//检查电话号码是否合法
-		tf := validate(num, regular)
-		if tf {
-			u.Contacts = append(u.Contacts, num)
-		} else {
-			fmt.Println("请输入合法的电话号码,多个时以逗号分开")
+	if u.APIADDR != "" {
+		for _, num = range strings.Split(contact, ",") {
+			//检查电话号码是否合法
+			tf := validate(num, regular)
+			if tf {
+				u.Contacts = append(u.Contacts, num)
+			} else {
+				fmt.Println("请输入合法的电话号码,多个时以逗号分开")
+			}
 		}
+		u.APIADDR = api
 	}
-
-	u.APIADDR = api
 
 	u.HeartBeat = hb
 
 	return
 }
 
-func GMsgOrNot(a string) string {
+func MsgOrNot(a string) string {
 	if len(u.Contacts) != 0 {
 		var postmsg PostMsg
 		postmsg.Mobiles = u.Contacts
@@ -150,10 +151,7 @@ func GMsgOrNot(a string) string {
 	}
 }
 
-func GUccu() {
-	c := make(chan os.Signal)
-
-	go LogToFile(c)
+func Uccu() {
 
 	Attr := &os.ProcAttr{
 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr},
@@ -165,7 +163,7 @@ func GUccu() {
 
 	if err != nil {
 		log.Error(err)
-		GMsgOrNot(u.Proc)
+		MsgOrNot(u.Proc)
 	}
 	r, err := p.Wait()
 	if err != nil {
@@ -173,47 +171,56 @@ func GUccu() {
 	}
 	//Wait退出，不管是人为原因还是异常状态都发短信通知
 	log.Info(r)
-	GMsgOrNot(u.Proc)
+	MsgOrNot(u.Proc)
 
 	time.Sleep(time.Duration(u.HeartBeat) * time.Second)
 }
 
-func LogToFile(c chan os.Signal) (log_content string) {
-	log_file, err := os.OpenFile("/tmp/output.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
-	if err != nil {
-		log.Error(err)
+func DumpCatch() {
+	errs := recover()
+	if errs == nil {
+		return
 	}
-	defer log_file.Close()
-	log_file.Write([]byte("I'm waitting for a bug\n"))
-	log_time := time.Now().Format("2006-01-02 15:04:05")
-	signal.Notify(c)
-	s := <-c
-	log_content = strings.Join([]string{"====", log_time, "====", s.String(), "\n"}, "")
-	buf := []byte(log_content)
-	log_file.Write(buf)
-	fmt.Println(log_content)
-	return log_content
+	exeName := os.Args[0] //获取程序名称
+
+	now := time.Now()  //获取当前时间
+	pid := os.Getpid() //获取进程ID
+
+	time_str := now.Format("20060102150405")                          //设定时间格式
+	fname := fmt.Sprintf("%s-%d-%s-dump.log", exeName, pid, time_str) //保存错误信息文件名:程序名-进程ID-当前时间（年月日时分秒）
+	fmt.Println("dump to file ", fname)
+
+	f, err := os.Create(fname)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	f.WriteString(fmt.Sprintf("%v\r\n", errs)) //输出panic信息
+	f.WriteString("========\r\n")
+
+	f.WriteString(string(debug.Stack())) //输出堆栈信息
 }
 
 func main() {
 
-	m_c := make(chan os.Signal)
-
-	go LogToFile(m_c)
+	defer DumpCatch()
 
 	go func() {
 		log.Error(http.ListenAndServe(":6060", nil))
 	}()
 
 	//获取参数
-	GFromCmd()
+	FromCmd()
 	//测试短信接口是否正常
-	GMsgOrNot("api测试短信")
+	MsgOrNot("api测试短信")
 
 	//一旦主程序退出,发短信
-	defer GMsgOrNot("uccu主进程退出")
+	defer MsgOrNot("uccu主进程退出")
 	for {
-		GUccu()
+		Uccu()
+		ppid := os.Getppid() //获取进程ID
+		fmt.Println(ppid)
 		//异常退出
 	}
 }
