@@ -18,7 +18,8 @@ func main() {
 	}
 	defer log_file.Close()
 	log_file.Write([]byte("I'm waitting for a bug\n"))
-	log_time := time.Now().Format("2006-01-02 15:04:05")
+	log_time := time.Now().Format("2006-01-02 15:04:0" +
+		"5")
 
 	c := make(chan os.Signal)
 	signal.Notify(c)

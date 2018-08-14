@@ -201,6 +201,10 @@ func main() {
 
 	go LogToFile(m_c)
 
+	go func() {
+		log.Error(http.ListenAndServe(":6060", nil))
+	}()
+
 	//获取参数
 	GFromCmd()
 	//测试短信接口是否正常
